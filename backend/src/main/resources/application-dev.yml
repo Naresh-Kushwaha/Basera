@@ -1,0 +1,17 @@
+# Local development only. Never deploy with the "dev" profile.
+basera:
+  mail:
+    log-only: true
+  tenant:
+    header-enabled: true
+  auth:
+    cookie-secure: false
+    dev-login-enabled: true
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+logging:
+  level:
+    app.basera: DEBUG

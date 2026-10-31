@@ -1,0 +1,94 @@
+spring:
+  application:
+    name: basera-backend
+  jackson:
+    default-property-inclusion: non_null
+    deserialization:
+      fail-on-unknown-properties: true
+  servlet:
+    multipart:
+      max-file-size: 6MB
+      max-request-size: 8MB
+  jpa:
+    open-in-view: false          # no lazy loading outside a (tenant-scoped) transaction
+    hibernate:
+      ddl-auto: none             # schema is owned by Flyway
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    # Migrations run as the OWNER role (separate from the runtime roles below).
+    url: ${BASERA_DB_URL:jdbc:postgresql://localhost:5432/basera}
+    user: ${BASERA_DB_OWNER_USER:basera_owner}
+    password: ${BASERA_DB_OWNER_PASSWORD}
+    locations: classpath:db/migration
+
+server:
+  port: ${PORT:8080}
+  shutdown: graceful
+  forward-headers-strategy: framework      # honour X-Forwarded-Proto/Host from the ingress
+  error:
+    include-message: never
+    include-stacktrace: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+springdoc:
+  api-docs:
+    enabled: ${BASERA_SWAGGER_ENABLED:false}
+  swagger-ui:
+    enabled: ${BASERA_SWAGGER_ENABLED:false}
+
+basera:
+  datasource:
+    app:                      # runtime role for tenant requests (subject to RLS)
+      jdbc-url: ${BASERA_DB_URL:jdbc:postgresql://localhost:5432/basera}
+      username: ${BASERA_DB_APP_USER:basera_app}
+      password: ${BASERA_DB_APP_PASSWORD}
+      maximum-pool-size: 20
+      pool-name: basera-app
+    platform:                 # SUPER_ADMIN + auth flows only (BYPASSRLS, table-restricted)
+      jdbc-url: ${BASERA_DB_URL:jdbc:postgresql://localhost:5432/basera}
+      username: ${BASERA_DB_PLATFORM_USER:basera_platform}
+      password: ${BASERA_DB_PLATFORM_PASSWORD}
+      maximum-pool-size: 5
+      pool-name: basera-platform
+  tenant:
+    base-domain: ${BASERA_BASE_DOMAIN:localhost}      # tenants live at <slug>.<base-domain>
+    url-scheme: ${BASERA_URL_SCHEME:http}
+    public-port-suffix: ${BASERA_PUBLIC_PORT_SUFFIX:} # e.g. ":5173" in local dev, empty in production
+    header-enabled: ${BASERA_TENANT_HEADER_ENABLED:false}   # X-Tenant-ID header: dev/tests only
+  jwt:
+    secret: ${BASERA_JWT_SECRET}                      # >= 32 bytes, from a secret store
+    issuer: basera
+    access-ttl: PT15M
+    refresh-ttl: P14D
+  google:
+    client-id: ${BASERA_GOOGLE_CLIENT_ID:}
+    client-secret: ${BASERA_GOOGLE_CLIENT_SECRET:}
+  auth:
+    cookie-secure: ${BASERA_COOKIE_SECURE:true}
+    auth-code-ttl: PT60S
+    state-ttl: PT10M
+    dev-login-enabled: false                          # only ever true with the "dev" profile
+  rate-limit:
+    auth-per-minute: 30
+    public-per-minute: 120
+    trust-forwarded-for: ${BASERA_TRUST_FORWARDED_FOR:false}
+  storage:
+    local-dir: ${BASERA_STORAGE_DIR:./data/media}     # listing photos (mount a persistent volume in production)
+  mail:
+    from: ${BASERA_MAIL_FROM:no-reply@localhost}
+    log-only: false          # true (dev profile) = log queued emails instead of sending
+    # SMTP is enabled by setting SPRING_MAIL_HOST / SPRING_MAIL_PORT / SPRING_MAIL_USERNAME / SPRING_MAIL_PASSWORD
+  platform:
+    super-admin-emails: ${BASERA_SUPER_ADMIN_EMAILS:}  # comma-separated; verified Google emails
